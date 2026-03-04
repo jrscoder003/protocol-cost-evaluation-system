@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>协议评估成本核算系统（视觉优先）</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>自动化设备智能评估与核算平台</h1>
+      <p>Vision First · Mechanical / Electrical Ready · Management Enabled</p>
+    </div>
+    <div class="topbar-meta">
+      <span class="status-dot"></span>
+      <span>系统在线</span>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="module-nav card">
+      <h2>系统模块</h2>
+      <p class="small">智能化设备评估后台</p>
+      <nav>
+        <a class="module-nav-link active" href="#module-home">驾驶舱 / 仪表盘</a>
+        <a class="module-nav-link" href="#module-content">内容中心</a>
+        <a class="module-nav-link" href="#module-vision">视觉评估引擎</a>
+        <a class="module-nav-link" href="#module-maintain">维护中心</a>
+        <a class="module-nav-link" href="#module-output">输出中心</a>
+        <a class="module-nav-link" href="#module-mechanical">机构模块</a>
+        <a class="module-nav-link" href="#module-electrical">电气模块</a>
+        <a class="module-nav-link" href="#module-admin">管理页面 (Root)</a>
+        <a class="module-nav-link" href="#module-help">帮助与文档</a>
+      </nav>
+    </aside>
+
+    <main class="layout">
+    <section class="card route-bar">
+      <div id="breadcrumbCurrent" class="breadcrumb">首页 / 首页仪表盘</div>
+      <button id="backModuleBtn" class="back-btn" type="button" disabled>返回上一个模块</button>
+    </section>
+
+    <section class="card module-card" id="module-home">
+      <h2>1. 首页仪表盘</h2>
+      <p class="hint">默认驾驶舱：汇总系统状态、评估进度与关键指标。</p>
+      <div id="dashboardStats" class="dashboard-grid"></div>
+      <div id="flowStatusBoard" class="panel"></div>
+      <div class="panel">
+        <button type="button" data-go-hash="#module-content">进入内容中心</button>
+        <button type="button" data-go-hash="#module-vision">进入视觉评估</button>
+        <button type="button" data-go-hash="#module-maintain">进入维护中心</button>
+        <button type="button" data-go-hash="#module-output">进入输出中心</button>
+      </div>
+    </section>
+
+    <section class="card module-card" id="module-content">
+      <h2>2. 内容中心（客户资料全生命周期）</h2>
+      <p class="hint">统一管理6类文档：协议资料、提供资料模板、基础设计报告、报价单、工程师备注、相机光源统计表。</p>
+      <div id="contentTypeBoard" class="framework-grid"></div>
+      <div class="panel small">说明：本版框架先打通目录与状态看板，后续迭代精细化解析器与模板映射。</div>
+    </section>
+
+    <section class="card module-card" id="module-vision">
+      <h2>3. 视觉评估引擎（开发中）</h2>
+      <div class="vision-tabs">
+        <button class="vision-tab-btn active" data-vision-tab="import" type="button">导入</button>
+        <button class="vision-tab-btn" data-vision-tab="maintain" type="button">维护</button>
+        <button class="vision-tab-btn" data-vision-tab="evaluate" type="button">评估</button>
+        <button class="vision-tab-btn" data-vision-tab="report" type="button">报告</button>
+      </div>
+
+      <div class="vision-pane" id="vision-pane-import">
+        <p class="hint">支持首版解析：TXT / CSV / JSON；PDF、Word、Excel 预留扩展接口。</p>
+        <div class="grid-form compact-grid">
+          <input id="docInput" type="file" multiple />
+          <input id="folderInput" type="file" webkitdirectory directory multiple />
+          <button id="parseBtn">解析资料</button>
+        </div>
+        <p class="small">可同时导入离散文件和文件夹，系统会做综合解析与重点评估输出。</p>
+        <div id="docSummary" class="panel"></div>
+        <div id="assessmentSummary" class="panel"></div>
+        <div id="docNotes" class="panel"></div>
+        <div class="panel">
+          <h4>解析验证（单文件深度查看）</h4>
+          <div class="grid-form compact-grid">
+            <input id="parsePreviewFileInput" type="file" />
+            <button id="parsePreviewBtn" type="button">解析并展示细节</button>
+          </div>
+          <p class="small">用于核对工位提取是否正确：展示工位、方案、精度、文本片段。</p>
+          <div id="parsePreviewStatus" class="small">未选择文件。</div>
+          <div id="parsePreviewStations" class="panel small"></div>
+          <div id="parsePreviewText" class="panel small"></div>
+        </div>
+      </div>
+
+      <div class="vision-pane is-hidden" id="vision-pane-maintain">
+          <p class="hint">维护能力已独立到“维护中心”页面，便于统一建库与权限管理。</p>
+          <div class="panel">
+            <button type="button" data-go-hash="#module-maintain">进入维护中心</button>
+          </div>
+      </div>
+
+      <div class="vision-pane is-hidden" id="vision-pane-evaluate">
+        <form id="evalForm" class="grid-form">
+          <input name="productName" placeholder="产品名称" required />
+          <input name="targetPrecisionUm" type="number" step="0.1" placeholder="目标检测精度(um)" required />
+          <input name="fovWidthMm" type="number" step="0.1" placeholder="视野宽度(mm)" required />
+          <input name="lineSpeedPpm" type="number" step="1" placeholder="节拍(件/分钟)" required />
+          <input name="preferredBrand" placeholder="客户指定品牌(可选)" />
+          <button type="submit">生成评估</button>
+        </form>
+        <div id="evalResult" class="panel"></div>
+        <div id="brandGuide" class="panel"></div>
+      </div>
+
+      <div class="vision-pane is-hidden" id="vision-pane-report">
+        <button id="exportMd">导出 Markdown 报告</button>
+        <button id="exportJson">导出 JSON 报告</button>
+        <div id="protocolDiffPanel" class="panel"></div>
+        <div id="quotePreview" class="panel"></div>
+        <div id="reportPreview" class="panel"></div>
+      </div>
+    </section>
+
+    <section class="card module-card" id="module-maintain">
+      <h2>4. 维护中心（资料库）</h2>
+      <p class="hint">导入自动识别 + 人工修正并存，所有资料绑定机型与工位，供评估自由调用。</p>
+
+      <div class="maintain-tabs">
+        <button class="maintain-tab-btn active" data-maintain-tab="protocol" type="button">① 签字版协议</button>
+        <button class="maintain-tab-btn" data-maintain-tab="report" type="button">② 视觉方案报告</button>
+        <button class="maintain-tab-btn" data-maintain-tab="cost" type="button">③ 成本预估表</button>
+        <button class="maintain-tab-btn" data-maintain-tab="part" type="button">④ 标准件维护</button>
+        <button class="maintain-tab-btn" data-maintain-tab="library" type="button">⑤ 机型工位资料库</button>
+      </div>
+
+      <div class="maintain-pane" id="maintain-pane-protocol">
+        <h3>签字版协议导入与总结</h3>
+        <div class="grid-form">
+          <input id="agreementMachineTypeInput" placeholder="机型（可空，自动识别后可手改）" />
+          <input id="agreementStationInput" placeholder="工位（可空，多个用逗号分隔）" />
+        </div>
+        <div id="agreementStationSuggestion" class="small">机型已有关联工位：暂无</div>
+        <div class="grid-form compact-grid">
+          <input id="agreementLibInput" type="file" multiple />
+          <button id="loadAgreementLibBtn" type="button">导入签字版协议</button>
+        </div>
+        <div id="agreementImportSummary" class="panel"></div>
+        <div class="grid-form">
+          <select id="agreementMachineFilter"><option value="">机型筛选（全部）</option></select>
+          <select id="agreementStationFilter"><option value="">工位筛选（全部）</option></select>
+        </div>
+        <div id="agreementLibTable" class="panel"></div>
+      </div>
+
+      <div class="maintain-pane is-hidden" id="maintain-pane-report">
+        <h3>视觉方案报告导入与工位识别</h3>
+        <div class="grid-form">
+          <input id="reportMachineTypeInput" placeholder="机型（可空）" />
+          <input id="reportStationInput" placeholder="工位（可空，多个用逗号分隔）" />
+        </div>
+        <div id="reportStationSuggestion" class="small">机型已有关联工位：暂无</div>
+        <div class="grid-form compact-grid">
+          <input id="reportFileInput" type="file" multiple />
+          <button id="loadReportBtn" type="button">导入视觉方案报告</button>
+        </div>
+        <div id="reportImportSummary" class="panel"></div>
+        <div id="reportLibraryTable" class="panel"></div>
+      </div>
+
+      <div class="maintain-pane is-hidden" id="maintain-pane-cost">
+        <h3>成本预估表导入与汇总</h3>
+        <div class="grid-form">
+          <input id="costMachineTypeInput" placeholder="机型（可空）" />
+          <input id="costStationInput" placeholder="工位（可空，多个用逗号分隔）" />
+        </div>
+        <div id="costStationSuggestion" class="small">机型已有关联工位：暂无</div>
+        <div class="grid-form compact-grid">
+          <input id="costFileInput" type="file" multiple />
+          <button id="loadCostBtn" type="button">导入成本预估表</button>
+        </div>
+        <div id="costImportSummary" class="panel"></div>
+        <div id="costLibraryTable" class="panel"></div>
+      </div>
+
+      <div class="maintain-pane is-hidden" id="maintain-pane-part">
+        <h3>标准件维护（自动导入 + 手动编辑）</h3>
+        <form id="partForm" class="grid-form">
+          <input name="category" placeholder="类别(相机/镜头/光源/控制器)" required />
+          <input name="name" placeholder="名称" required />
+          <input name="model" placeholder="型号" required />
+          <input name="brand" placeholder="品牌" required />
+          <input name="price" type="number" step="0.01" placeholder="单价" required />
+          <input name="specPrecisionUm" type="number" step="0.1" placeholder="精度能力(um)" required />
+          <input name="leadTimeDays" type="number" placeholder="交期(天)" required />
+          <input name="machineType" placeholder="绑定机型（可空）" />
+          <input name="stationScope" placeholder="绑定工位（可空，多个逗号）" />
+          <button type="submit">新增标准件</button>
+        </form>
+        <input id="partSearch" placeholder="筛选：品牌/型号/类别/机型/工位" />
+        <div class="grid-form compact-grid">
+          <input id="partPriceFileInput" type="file" multiple />
+          <button id="importPartPriceBtn" type="button">导入标准件价格表（CSV/JSON/TXT）</button>
+        </div>
+        <div id="partPriceImportLog" class="panel"></div>
+        <div id="partTable" class="panel"></div>
+      </div>
+
+      <div class="maintain-pane is-hidden" id="maintain-pane-library">
+        <h3>机型工位资料库浏览与调用预览</h3>
+        <div class="grid-form">
+          <input id="machineLibraryNameInput" placeholder="新建机型库名称（如卷绕机A线）" />
+          <button id="createMachineLibraryBtn" type="button">新建机型库（自动生成文件）</button>
+        </div>
+        <div class="grid-form">
+          <select id="machineLibrarySelect"><option value="">选择机型库</option></select>
+          <button id="loadMachineLibraryBtn" type="button">加载机型库到当前维护页</button>
+          <button id="saveMachineLibraryBtn" type="button">保存当前维护内容到机型库</button>
+        </div>
+        <div id="machineLibraryStatus" class="panel small">机型库状态：未选择。</div>
+        <div class="grid-form">
+          <select id="libMachineSelect"><option value="ALL">机型：ALL</option></select>
+          <select id="libStationSelect" multiple size="5"></select>
+        </div>
+        <p class="small">工位可多选；不选默认ALL。用于评估调用前的资料预览确认。</p>
+        <div class="framework-grid">
+          <div id="libProtocolPanel" class="panel"></div>
+          <div id="libReportPanel" class="panel"></div>
+          <div id="libPartsPanel" class="panel"></div>
+          <div id="libCostPanel" class="panel"></div>
+        </div>
+
+        <h3>补充维护：工位能力、关注规则、信息文档、模板库</h3>
+        <form id="productTypeForm" class="grid-form">
+          <input name="productType" placeholder="产品类型（如3C外观件）" required />
+          <input name="stationName" placeholder="工位内容（如外观检测1站）" required />
+          <input name="stationCapability" placeholder="工位能力（如划痕+尺寸+OCR）" required />
+          <input name="cycleTimeSec" type="number" step="0.1" placeholder="工位节拍(s)" required />
+          <button type="submit">新增工位能力</button>
+        </form>
+        <div id="productTypeTable" class="panel"></div>
+
+        <form id="focusRuleForm" class="grid-form">
+          <input name="keyword" placeholder="关注关键词（如MES、追溯、误检率）" required />
+          <input name="weight" type="number" step="1" min="1" max="10" placeholder="权重(1-10)" required />
+          <input name="description" placeholder="关注说明" required />
+          <button type="submit">新增关注规则</button>
+        </form>
+        <div id="focusRuleTable" class="panel"></div>
+
+        <div class="grid-form compact-grid">
+          <input id="infoDocInput" type="file" multiple />
+          <button id="loadInfoDocBtn" type="button">导入信息文档</button>
+        </div>
+        <div id="infoDocTable" class="panel"></div>
+
+        <div class="grid-form compact-grid">
+          <input id="refDocInput" type="file" multiple />
+          <button id="loadRefBtn" type="button">加载客户模板/参考文档</button>
+        </div>
+        <div id="refDocSummary" class="panel"></div>
+      </div>
+    </section>
+
+    <section class="card module-card" id="module-output">
+      <h2>5. 输出中心（交付物）</h2>
+      <p class="hint">交付输出：基础设计报告、报价单、相机光源统计表，支持客户模板映射。</p>
+      <div id="outputStatusBoard" class="framework-grid"></div>
+      <div class="panel small">说明：本版先提供输出状态框架，后续迭代导出模板引擎。</div>
+    </section>
+
+    <section class="card module-card" id="module-mechanical">
+      <h2>6. 机构模块</h2>
+      <p class="hint">预留机构评估能力：机构复杂度、传动选型、装配工时与材料成本。</p>
+      <div class="panel">
+        <span class="tag">机构BOM导入</span>
+        <span class="tag">传动/执行器选型</span>
+        <span class="tag">工时模型</span>
+        <span class="tag">机构风险等级</span>
+      </div>
+    </section>
+
+    <section class="card module-card" id="module-electrical">
+      <h2>7. 电气模块</h2>
+      <p class="hint">预留电气评估能力：I/O点位、柜体、线缆、PLC与安全回路估算。</p>
+      <div class="panel">
+        <span class="tag">电气原理图导入</span>
+        <span class="tag">PLC/伺服选型</span>
+        <span class="tag">线缆与辅料核算</span>
+        <span class="tag">安规检查清单</span>
+      </div>
+    </section>
+
+    <section class="card module-card" id="module-admin">
+      <h2>8. 管理页面（Root权限）</h2>
+      <p class="hint">仅Root可操作：品牌知识库、权限策略、成本参数模板。</p>
+      <div class="grid-form">
+        <input id="rootTokenInput" placeholder="输入Root口令（示例：root123）" />
+        <button id="rootUnlockBtn" type="button">验证Root权限</button>
+      </div>
+      <div id="adminContent" class="panel"></div>
+    </section>
+
+    <section class="card module-card" id="module-help">
+      <h2>9. 帮助与文档</h2>
+      <p class="hint">快速上手、评估规范、参数说明与FAQ。</p>
+      <div class="panel">
+        <span class="tag">新手引导</span>
+        <span class="tag">视觉评估规范</span>
+        <span class="tag">机构/电气模板说明</span>
+        <span class="tag">常见问题</span>
+      </div>
+    </section>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

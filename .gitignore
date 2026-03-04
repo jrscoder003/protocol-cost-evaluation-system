@@ -1,0 +1,18 @@
+node_modules/
+dist/
+.runtime/
+uploads/
+*.log
+*.tmp
+*.sqlite
+*.db
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/*.code-workspace
+
+# Env files
+.env
+.env.*
+!.env.example

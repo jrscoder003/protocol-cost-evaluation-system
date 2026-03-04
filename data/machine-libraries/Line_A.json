@@ -1,0 +1,15 @@
+{
+  "machineType": "Line_A",
+  "createdAt": "2026-03-02T09:50:48.442Z",
+  "updatedAt": "2026-03-02T09:50:48.442Z",
+  "data": {
+    "agreementLibrary": [],
+    "reportLibrary": [],
+    "costLibrary": [],
+    "parts": [],
+    "productTypes": [],
+    "focusRules": [],
+    "infoDocs": [],
+    "refDocs": []
+  }
+}

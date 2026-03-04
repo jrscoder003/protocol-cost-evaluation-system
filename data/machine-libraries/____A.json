@@ -1,0 +1,24 @@
+{
+  "machineType": "????A",
+  "createdAt": "2026-03-02T09:42:25.785Z",
+  "updatedAt": "2026-03-02T09:42:25.872Z",
+  "data": {
+    "agreementLibrary": [
+      {
+        "stations": [
+          "1?"
+        ],
+        "machineType": "????A",
+        "name": "demo.txt",
+        "id": "1"
+      }
+    ],
+    "reportLibrary": [],
+    "costLibrary": [],
+    "parts": [],
+    "productTypes": [],
+    "focusRules": [],
+    "infoDocs": [],
+    "refDocs": []
+  }
+}
