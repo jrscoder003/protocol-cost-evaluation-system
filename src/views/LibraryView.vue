@@ -142,7 +142,21 @@
                       <div v-else>无关联内容</div>
                     </template>
                   </el-table-column>
-                  <el-table-column prop="protocolReading" label="协议解读" width="200"></el-table-column>
+                  <el-table-column prop="protocolReading" label="协议解读" width="260">
+                    <template #default="scope">
+                      <div class="protocol-reading-cell">
+                        <div>{{ scope.row.protocolReading || '无相关信息' }}</div>
+                        <el-tag
+                          v-if="scope.row.protocolReadingSourceLabel"
+                          size="small"
+                          :type="scope.row.protocolReadingSource === 'fallback' ? 'warning' : 'success'"
+                          style="margin-top: 6px;"
+                        >
+                          {{ scope.row.protocolReadingSourceLabel }}
+                        </el-tag>
+                      </div>
+                    </template>
+                  </el-table-column>
                   <el-table-column prop="indexKeywords" label="索引关键词" width="200"></el-table-column>
                 </el-table>
                 <el-button type="primary" @click="exportKeyInfo" style="margin-top: 10px;">
@@ -417,35 +431,109 @@
                   <span>关键词索引/信息维护</span>
                 </div>
               </template>
+              <el-alert title="推荐小白模板列：机型、工位、解析关键项、关键词引词、关联项、项目实际解析的内容简介（备注）" type="info" :closable="false" style="margin-bottom: 12px;" />
+              <el-upload
+                :auto-upload="false"
+                :limit="1"
+                :on-change="handleKeywordImportFileChange"
+                style="margin-bottom: 12px;"
+              >
+                <el-button type="primary" plain>选择关键词导入表格</el-button>
+              </el-upload>
+              <div style="margin-bottom: 16px; display: flex; gap: 8px;">
+                <el-button type="success" @click="importKeywordFile" :loading="loading.keyword">导入表格</el-button>
+                <el-button @click="showDownloadDefault">下载导入模板</el-button>
+                <el-button type="warning" plain @click="seedDefaultKeywords" :loading="loading.keyword">一键生成默认关键词</el-button>
+              </div>
               <el-form :model="keywordForm" label-width="120px" style="margin-bottom: 20px;">
                 <el-row :gutter="20">
-                  <el-col :span="8">
+                  <el-col :span="6">
                     <el-form-item label="关键词">
                       <el-input v-model="keywordForm.keyword"></el-input>
                     </el-form-item>
                   </el-col>
-                  <el-col :span="8">
+                  <el-col :span="6">
+                    <el-form-item label="同义词">
+                      <el-input v-model="keywordForm.synonyms" placeholder="逗号分隔"></el-input>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="4">
                     <el-form-item label="类型">
                       <el-select v-model="keywordForm.type">
                         <el-option label="协议" value="agreement"></el-option>
                         <el-option label="视觉方案" value="vision"></el-option>
                         <el-option label="成本表" value="cost"></el-option>
-                        <el-option label="标准件" value="part"></el-option>
+                        <el-option label="通用" value="all"></el-option>
                       </el-select>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="4">
+                    <el-form-item label="关键项">
+                      <el-select v-model="keywordForm.keySection" clearable>
+                        <el-option label="产品尺寸" value="productSize" />
+                        <el-option label="PPM" value="ppm" />
+                        <el-option label="检测要求" value="inspectionRequirements" />
+                        <el-option label="检测对象规格" value="inspectionObjectSpecs" />
+                        <el-option label="检测精度" value="inspectionPrecision" />
+                        <el-option label="工位要求" value="stationRequirements" />
+                        <el-option label="品牌要求" value="brandRequirements" />
+                        <el-option label="工控机要求" value="industrialComputerRequirements" />
+                        <el-option label="软件要求" value="softwareRequirements" />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="4">
+                    <el-form-item label="权重">
+                      <el-input v-model.number="keywordForm.weight" type="number"></el-input>
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+                <el-row :gutter="20">
+                  <el-col :span="12">
+                    <el-form-item label="备注">
+                      <el-input v-model="keywordForm.remark"></el-input>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="4">
+                    <el-form-item label="启用">
+                      <el-switch v-model="keywordForm.enabled"></el-switch>
                     </el-form-item>
                   </el-col>
                   <el-col :span="8">
                     <el-form-item label="操作">
-                      <el-button type="primary" @click="addKeyword" :loading="loading.keyword">添加</el-button>
+                      <el-button type="primary" @click="addKeyword" :loading="loading.keyword">添加/更新</el-button>
                     </el-form-item>
                   </el-col>
                 </el-row>
               </el-form>
+              <div style="margin-bottom: 15px;">
+                <el-button type="success" @click="downloadKeywordLibrary">
+                  📥 下载当前关键词库
+                </el-button>
+                <el-button type="info" @click="showDownloadDefault">
+                  📋 下载导入模板
+                </el-button>
+              </div>
               <el-table :data="keywordList" style="margin-top: 20px;">
-                <el-table-column prop="keyword" label="关键词" width="200"></el-table-column>
-                <el-table-column prop="type" label="类型"></el-table-column>
-                <el-table-column prop="created_at" label="创建时间"></el-table-column>
-                <el-table-column label="操作">
+                <el-table-column prop="keyword" label="关键词" width="150"></el-table-column>
+                <el-table-column prop="synonyms" label="同义词" width="200"></el-table-column>
+                <el-table-column prop="type" label="类型" width="100"></el-table-column>
+                <el-table-column label="关键项" width="150">
+                  <template #default="scope">{{ toKeySectionLabel(scope.row.key_section) }}</template>
+                </el-table-column>
+                <el-table-column label="绑定范围" width="200">
+                  <template #default="scope">
+                    <span style="font-size: 12px; color: #666;">
+                      {{ getBindingDisplayText(scope.row.id, scope.row.key_section) || 'ALL/ALL/关键项跟随关键词（默认）' }}
+                    </span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="weight" label="权重" width="70"></el-table-column>
+                <el-table-column prop="enabled" label="启用" width="70">
+                  <template #default="scope">{{ Number(scope.row.enabled) === 1 ? '是' : '否' }}</template>
+                </el-table-column>
+                <el-table-column prop="created_at" label="创建时间" width="160"></el-table-column>
+                <el-table-column label="操作" width="150">
                   <template #default="scope">
                     <el-button size="small" @click="editKeyword(scope.row)">
                       编辑
@@ -455,6 +543,16 @@
                     </el-button>
                   </template>
                 </el-table-column>
+              </el-table>
+
+              <el-divider content-position="left">映射缩影（按导出模板展示）</el-divider>
+              <el-table :data="keywordMappingPreviewRows" style="margin-top: 12px;" max-height="320">
+                <el-table-column prop="machineType" label="机型" min-width="180" />
+                <el-table-column prop="station" label="工位" min-width="150" />
+                <el-table-column prop="keySectionLabel" label="解析关键项" min-width="120" />
+                <el-table-column prop="keywordWithSynonyms" label="关键词引词" min-width="220" />
+                <el-table-column prop="relatedItems" label="关联项" min-width="140" />
+                <el-table-column prop="remarkText" label="项目实际解析的内容简介（备注）" min-width="320" show-overflow-tooltip />
               </el-table>
             </el-card>
           </el-tab-pane>
@@ -468,6 +566,18 @@
               <el-form :model="bindingForm" label-width="120px" style="margin-bottom: 20px;">
                 <el-row :gutter="20">
                   <el-col :span="6">
+                    <el-form-item label="关键词">
+                      <el-select v-model="bindingForm.keywordId" filterable>
+                        <el-option
+                          v-for="item in keywordList"
+                          :key="item.id"
+                          :label="`${item.keyword} (${item.type})`"
+                          :value="String(item.id)"
+                        />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="6">
                     <el-form-item label="机型">
                       <el-input v-model="bindingForm.machineType"></el-input>
                     </el-form-item>
@@ -478,8 +588,18 @@
                     </el-form-item>
                   </el-col>
                   <el-col :span="6">
-                    <el-form-item label="关键词">
-                      <el-input v-model="bindingForm.keyword"></el-input>
+                    <el-form-item label="关键项">
+                      <el-select v-model="bindingForm.keySection" clearable>
+                        <el-option label="产品尺寸" value="productSize" />
+                        <el-option label="PPM" value="ppm" />
+                        <el-option label="检测要求" value="inspectionRequirements" />
+                        <el-option label="检测对象规格" value="inspectionObjectSpecs" />
+                        <el-option label="检测精度" value="inspectionPrecision" />
+                        <el-option label="工位要求" value="stationRequirements" />
+                        <el-option label="品牌要求" value="brandRequirements" />
+                        <el-option label="工控机要求" value="industrialComputerRequirements" />
+                        <el-option label="软件要求" value="softwareRequirements" />
+                      </el-select>
                     </el-form-item>
                   </el-col>
                   <el-col :span="6">
@@ -490,9 +610,11 @@
                 </el-row>
               </el-form>
               <el-table :data="bindingList" style="margin-top: 20px;">
+                <el-table-column prop="keyword_name" label="关键词" width="180"></el-table-column>
                 <el-table-column prop="machine_type" label="机型"></el-table-column>
                 <el-table-column prop="station" label="工位"></el-table-column>
-                <el-table-column prop="keyword" label="关键词"></el-table-column>
+                <el-table-column prop="key_section" label="关键项"></el-table-column>
+                <el-table-column prop="priority" label="优先级" width="90"></el-table-column>
                 <el-table-column prop="created_at" label="创建时间"></el-table-column>
                 <el-table-column label="操作">
                   <template #default="scope">
@@ -651,11 +773,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Upload, Loading } from '@element-plus/icons-vue'
 import { ElImageViewer } from 'element-plus'
-import { agreementAPI, visionReportAPI, costTableAPI, partAPI, machineLibraryAPI } from '../services/api'
+import { agreementAPI, visionReportAPI, costTableAPI, partAPI, machineLibraryAPI, keywordAPI } from '../services/api'
 
 const router = useRouter()
 const activeIndex = ref('library')
@@ -678,6 +800,7 @@ const loading = ref({
 const agreementFiles = ref<File[]>([])
 const visionFiles = ref<File[]>([])
 const costFiles = ref<File[]>([])
+const keywordImportFile = ref<File | null>(null)
 
 // 表单数据
 const agreementForm = ref({
@@ -712,14 +835,21 @@ const machineForm = ref({
 // 关键词索引表单
 const keywordForm = ref({
   keyword: '',
-  type: 'agreement'
+  synonyms: '',
+  type: 'agreement',
+  keySection: '',
+  weight: 1,
+  enabled: true,
+  remark: ''
 })
 
 // 关联绑定表单
 const bindingForm = ref({
+  keywordId: '',
   machineType: '',
   station: '',
-  keyword: ''
+  keySection: '',
+  priority: 1
 })
 
 // 视觉信息表单
@@ -737,6 +867,7 @@ const keywordList = ref<any[]>([])
 const bindingList = ref<any[]>([])
 const visionInfoList = ref<any[]>([])
 const keyInfoList = ref<any[]>([])
+const editingKeywordId = ref<number | null>(null)
 
 // 机型和工位列表
 const machineTypes = ref<string[]>([])
@@ -745,6 +876,101 @@ const stationList = ref<string[]>([])
 // 关键信息预览状态
 const showKeyInfoPreview = ref(false)
 const currentAgreement = ref<any>(null)
+
+const KEY_INFO_SECTIONS = [
+  {
+    id: 1,
+    name: '产品尺寸',
+    keySection: 'productSize',
+    description: '产品或来料尺寸边界是否明确（如极片/极耳/极组尺寸、视野范围与公差）。',
+    indexKeywords: '产品尺寸,极片尺寸,极耳尺寸,视野'
+  },
+  {
+    id: 2,
+    name: 'PPM',
+    keySection: 'ppm',
+    description: '产线节拍、拍照频率、UPH/PPM 是否定义，是否存在工位独立节拍。',
+    indexKeywords: 'PPM,节拍,拍照频率,UPH'
+  },
+  {
+    id: 3,
+    name: '检测要求',
+    keySection: 'inspectionRequirements',
+    description: '每工位检测项目、判定标准、漏检/过杀/GRR 等质量指标是否清晰。',
+    indexKeywords: '检测内容,检测项目,判定标准,过杀,漏检,GRR'
+  },
+  {
+    id: 4,
+    name: '检测对象规格',
+    keySection: 'inspectionObjectSpecs',
+    description: '每工位需检测对象及尺寸/颜色/间距等规格是否给出完整边界。',
+    indexKeywords: '检测对象,对象规格,极耳尺寸,胶纸间距'
+  },
+  {
+    id: 5,
+    name: '检测精度',
+    keySection: 'inspectionPrecision',
+    description: '检测精度、像元精度、分辨率与视野对应关系是否明确。',
+    indexKeywords: '检测精度,重复精度,像元精度,分辨率'
+  },
+  {
+    id: 6,
+    name: '工位要求',
+    keySection: 'stationRequirements',
+    description: '工位数量、单/双工位配置、每工位相机数量及前后段布局是否明确。',
+    indexKeywords: '工位要求,工艺流程,工位配置,相机数量'
+  },
+  {
+    id: 7,
+    name: '品牌要求',
+    keySection: 'brandRequirements',
+    description: '相机/镜头/光源等品牌是否限定，是否允许替代及替代边界。',
+    indexKeywords: '品牌要求,相机品牌,镜头品牌,光源品牌'
+  },
+  {
+    id: 8,
+    name: '工控机要求',
+    keySection: 'industrialComputerRequirements',
+    description: 'CPU、内存、网口、存储天数、接口预留等工控机性能要求是否完整。',
+    indexKeywords: '工控机,CPU,内存,端口,存储天数'
+  },
+  {
+    id: 9,
+    name: '软件要求',
+    keySection: 'softwareRequirements',
+    description: '软件基础能力（权限、追溯、导出、报警、MES 对接）是否明确。',
+    indexKeywords: '软件要求,权限,追溯,导出,报警,MES'
+  }
+]
+
+const buildKeyInfoList = (extractedInfo: any) => {
+  const sections = extractedInfo?.keySections || {}
+  return KEY_INFO_SECTIONS.map((config) => {
+    const sectionText = String(sections[config.keySection] || '').trim()
+    const initialText = sectionText || '无相关信息'
+
+    return {
+      id: config.id,
+      name: config.name,
+      description: config.description,
+      protocolReading: initialText,
+      protocolReadingSource: sectionText ? 'text-hit' : 'none',
+      protocolReadingSourceLabel: sectionText ? '文本命中' : '',
+      indexKeywords: config.indexKeywords,
+      relatedContent: {
+        text: initialText,
+        images: [],
+        screenshots: []
+      }
+    }
+  })
+}
+
+const stripEmptyPlaceholder = (text: string) => {
+  const value = String(text || '').trim()
+  if (!value || value === '无相关信息') return ''
+  return value
+}
 
 // 生命周期
 onMounted(async () => {
@@ -787,6 +1013,7 @@ const handleTabChange = (tab: string) => {
       break
     case 'keyword':
       loadKeywords()
+      loadBindings()
       break
     case 'binding':
       loadBindings()
@@ -1012,10 +1239,31 @@ const showFileViewer = ref(false)
 const currentFile = ref<any>(null)
 const fileViewerTab = ref('fullText')
 
+const resolveArchiveUrl = (archiveUrl: string) => {
+  const raw = String(archiveUrl || '').trim()
+  if (!raw) return ''
+  if (/^https?:\/\//i.test(raw)) return raw
+
+  const normalized = raw.startsWith('/') ? raw : `/${raw}`
+  const backendOrigin =
+    (import.meta as any)?.env?.VITE_BACKEND_ORIGIN ||
+    (window.location.port === '3004'
+      ? `${window.location.protocol}//${window.location.hostname}:3006`
+      : window.location.origin)
+
+  return `${backendOrigin}${normalized}`
+}
+
 const viewAgreement = (row: any) => {
   if (row?.archive_url) {
-    window.open(row.archive_url, '_blank')
-    return
+    const openUrl = resolveArchiveUrl(row.archive_url)
+    if (openUrl) {
+      window.open(openUrl, '_blank')
+      return
+    }
+  }
+  if (row?.archive_url) {
+    alert('归档链接为空，已切换到文本预览模式')
   }
   currentFile.value = row
   showFileViewer.value = true
@@ -1103,12 +1351,91 @@ const deleteMachineLibrary = async (id: number) => {
 }
 
 // 关键词索引相关方法
+const KEY_SECTION_LABEL_MAP: Record<string, string> = {
+  productSize: '产品尺寸',
+  ppm: 'PPM',
+  inspectionRequirements: '检测要求',
+  inspectionObjectSpecs: '检测对象规格',
+  inspectionPrecision: '检测精度',
+  stationRequirements: '工位要求',
+  brandRequirements: '品牌要求',
+  industrialComputerRequirements: '工控机要求',
+  softwareRequirements: '软件要求'
+}
+
+const toKeySectionLabel = (section: string) => {
+  const key = String(section || '').trim()
+  return KEY_SECTION_LABEL_MAP[key] || key || ''
+}
+
+const extractRelatedItems = (remark: string) => {
+  const match = String(remark || '').match(/关联项[:：]\s*([^；;\n]+)/)
+  return match?.[1]?.trim() || ''
+}
+
+const stripRelatedHint = (remark: string) => {
+  return String(remark || '')
+    .split(/[；;]/g)
+    .map((item) => String(item || '').trim())
+    .filter((item) => item && !/^关联项[:：]/.test(item))
+    .join('；')
+}
+
+const getBindingDisplayText = (keywordId: number, defaultKeySection?: string) => {
+  const related = bindingList.value.filter((b: any) => Number(b.keyword_id) === Number(keywordId))
+  if (related.length === 0) {
+    const sectionText = toKeySectionLabel(String(defaultKeySection || '').trim()) || '未指定关键项'
+    return `ALL/ALL/${sectionText}`
+  }
+  const texts = related.map((b: any) => {
+    const machine = String(b.machine_type || 'ALL').trim()
+    const station = String(b.station || 'ALL').trim()
+    const section = toKeySectionLabel(String(b.key_section || defaultKeySection || '').trim()) || '未指定关键项'
+    return `${machine}/${station}/${section}`
+  })
+  return texts.join('; ')
+}
+
+const keywordMappingPreviewRows = computed(() => {
+  return keywordList.value.flatMap((kw: any) => {
+    const related = bindingList.value.filter((b: any) => Number(b.keyword_id) === Number(kw.id))
+    const sourceRows = related.length > 0 ? related : [{ machine_type: 'ALL', station: 'ALL', key_section: kw.key_section || '' }]
+
+    return sourceRows.map((binding: any) => ({
+      machineType: String(binding.machine_type || 'ALL').trim() || 'ALL',
+      station: String(binding.station || 'ALL').trim() || 'ALL',
+      keySectionLabel: toKeySectionLabel(String(binding.key_section || kw.key_section || '').trim()),
+      keywordWithSynonyms: [kw.keyword, kw.synonyms].filter(Boolean).join('、'),
+      relatedItems: extractRelatedItems(String(kw.remark || '')),
+      remarkText: stripRelatedHint(String(kw.remark || ''))
+    }))
+  })
+})
+
 const addKeyword = async () => {
   loading.value.keyword = true
   try {
-    // 这里应该调用API添加关键词
-    alert('添加成功')
-    keywordForm.value = { keyword: '', type: 'agreement' }
+    if (!String(keywordForm.value.keyword || '').trim()) {
+      alert('请先输入关键词')
+      return
+    }
+    if (editingKeywordId.value) {
+      await keywordAPI.update(editingKeywordId.value, keywordForm.value)
+      alert('更新成功')
+    } else {
+      await keywordAPI.create(keywordForm.value)
+      alert('保存成功')
+    }
+    keywordForm.value = {
+      keyword: '',
+      synonyms: '',
+      type: 'agreement',
+      keySection: '',
+      weight: 1,
+      enabled: true,
+      remark: ''
+    }
+    editingKeywordId.value = null
     await loadKeywords()
   } catch (error) {
     alert('添加失败')
@@ -1120,27 +1447,30 @@ const addKeyword = async () => {
 
 const loadKeywords = async () => {
   try {
-    // 这里应该调用API加载关键词
-    // 模拟数据
-    keywordList.value = [
-      { id: 1, keyword: '相机', type: 'agreement', created_at: new Date().toISOString() },
-      { id: 2, keyword: '镜头', type: 'vision', created_at: new Date().toISOString() },
-      { id: 3, keyword: '光源', type: 'vision', created_at: new Date().toISOString() },
-      { id: 4, keyword: '成本', type: 'cost', created_at: new Date().toISOString() }
-    ]
+    const response = await keywordAPI.getList()
+    keywordList.value = response.data.items || []
   } catch (error) {
     console.error('加载关键词失败:', error)
   }
 }
 
 const editKeyword = (row: any) => {
-  console.log('Edit keyword:', row)
+  editingKeywordId.value = Number(row.id)
+  keywordForm.value = {
+    keyword: String(row.keyword || ''),
+    synonyms: String(row.synonyms || ''),
+    type: String(row.type || 'agreement'),
+    keySection: String(row.key_section || ''),
+    weight: Number(row.weight || 1),
+    enabled: Number(row.enabled) === 1,
+    remark: String(row.remark || '')
+  }
 }
 
 const deleteKeyword = async (id: number) => {
   if (confirm('确定要删除吗？')) {
     try {
-      // 这里应该调用API删除关键词
+      await keywordAPI.delete(id)
       alert('删除成功')
       await loadKeywords()
     } catch (error) {
@@ -1154,9 +1484,19 @@ const deleteKeyword = async (id: number) => {
 const addBinding = async () => {
   loading.value.binding = true
   try {
-    // 这里应该调用API添加关联绑定
+    if (!bindingForm.value.keywordId) {
+      alert('请先选择关键词')
+      return
+    }
+    await keywordAPI.createBinding({
+      keywordId: Number(bindingForm.value.keywordId),
+      machineType: bindingForm.value.machineType,
+      station: bindingForm.value.station,
+      keySection: bindingForm.value.keySection,
+      priority: Number(bindingForm.value.priority || 1)
+    })
     alert('添加成功')
-    bindingForm.value = { machineType: '', station: '', keyword: '' }
+    bindingForm.value = { keywordId: '', machineType: '', station: '', keySection: '', priority: 1 }
     await loadBindings()
   } catch (error) {
     alert('添加失败')
@@ -1168,26 +1508,27 @@ const addBinding = async () => {
 
 const loadBindings = async () => {
   try {
-    // 这里应该调用API加载关联绑定
-    // 模拟数据
-    bindingList.value = [
-      { id: 1, machine_type: '卷绕机', station: '外观检测', keyword: '相机', created_at: new Date().toISOString() },
-      { id: 2, machine_type: '卷绕机', station: '尺寸检测', keyword: '镜头', created_at: new Date().toISOString() },
-      { id: 3, machine_type: '组装机', station: 'OCR检测', keyword: '光源', created_at: new Date().toISOString() }
-    ]
+    const response = await keywordAPI.getBindings()
+    bindingList.value = response.data.items || []
   } catch (error) {
     console.error('加载关联绑定失败:', error)
   }
 }
 
 const editBinding = (row: any) => {
-  console.log('Edit binding:', row)
+  bindingForm.value = {
+    keywordId: String(row.keyword_id || ''),
+    machineType: String(row.machine_type || ''),
+    station: String(row.station || ''),
+    keySection: String(row.key_section || ''),
+    priority: Number(row.priority || 1)
+  }
 }
 
 const deleteBinding = async (id: number) => {
   if (confirm('确定要删除吗？')) {
     try {
-      // 这里应该调用API删除关联绑定
+      await keywordAPI.deleteBinding(id)
       alert('删除成功')
       await loadBindings()
     } catch (error) {
@@ -1195,6 +1536,85 @@ const deleteBinding = async (id: number) => {
       console.error(error)
     }
   }
+}
+
+const handleKeywordImportFileChange = (uploadFile: any) => {
+  keywordImportFile.value = uploadFile?.raw || null
+}
+
+const importKeywordFile = async () => {
+  if (!keywordImportFile.value) {
+    alert('请先选择导入文件')
+    return
+  }
+
+  loading.value.keyword = true
+  try {
+    const formData = new FormData()
+    formData.append('file', keywordImportFile.value)
+    const response = await keywordAPI.importFile(formData)
+    alert(`导入完成：关键词${response.data.insertedOrUpdated || 0}条，绑定${response.data.bindingCreated || 0}条`)
+    keywordImportFile.value = null
+    await loadKeywords()
+    await loadBindings()
+  } catch (error: any) {
+    alert(`导入失败：${error?.message || error}`)
+  } finally {
+    loading.value.keyword = false
+  }
+}
+
+const seedDefaultKeywords = async () => {
+  loading.value.keyword = true
+  try {
+    const response = await keywordAPI.seedDefaults()
+    alert(`默认关键词初始化完成：${response.data.seededCount || 0}条`)
+    await loadKeywords()
+    await loadBindings()
+  } catch (error: any) {
+    alert(`初始化失败：${error?.message || error}`)
+  } finally {
+    loading.value.keyword = false
+  }
+}
+
+const downloadKeywordLibrary = async () => {
+  try {
+    const response = await keywordAPI.exportLibrary()
+    const blob = response.data instanceof Blob
+      ? response.data
+      : new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    const disposition = String(response.headers?.['content-disposition'] || '')
+    const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i)
+    const plainMatch = disposition.match(/filename=([^;]+)/i)
+    const fileName = utf8Match?.[1]
+      ? decodeURIComponent(utf8Match[1])
+      : (plainMatch?.[1]?.replace(/"/g, '').trim() || `关键词索引库_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    link.download = fileName
+    link.click()
+    window.URL.revokeObjectURL(url)
+  } catch (error: any) {
+    alert(`下载失败：${error?.message || error}`)
+  }
+}
+
+const showDownloadDefault = () => {
+  const header = '机型,工位,解析关键项,关键词引词,关联项,项目实际解析的内容简介（备注）\n'
+  const sample = [
+    '数码卷绕设备-绿胶线扫相机,ALL,产品尺寸,工艺、产品尺寸、极片尺寸、极耳尺寸,,产品或者预测内容的工艺尺寸是否一致，是否存在新的尺寸边界',
+    '数码卷绕设备-绿胶线扫相机,ALL,PPM,节拍、PPM,产品尺寸,设备生产节拍要求是多少，不同工位是否存在独立节拍',
+    '数码卷绕设备-绿胶线扫相机,模切后切口检测工位,检测精度,精度、重复精度、分辨率,,若协议未明确精度，可结合视野与分辨率推算'
+  ].join('\n') + '\n'
+  const blob = new Blob([`\uFEFF${header}${sample}`], { type: 'text/csv;charset=utf-8;' })
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = '关键词导入模板.csv'
+  link.click()
+  window.URL.revokeObjectURL(url)
 }
 
 // 视觉信息相关方法
@@ -1251,274 +1671,128 @@ const previewAgreementInfo = async (agreement: any) => {
 
   const extractedInfo = normalizeExtractedInfo(agreement?.extracted_info)
 
-  // 从上传的文件中提取真实数据
-  if (Object.keys(extractedInfo).length > 0) {
-    keyInfoList.value = [
-      {
-        id: 1, 
-        name: '产品尺寸', 
-        description: '极片长宽范围、电芯或电池产品长宽范围、视野大小、料长', 
-        protocolReading: extractedInfo.keySections?.productSize || '无相关信息', 
-        indexKeywords: '产品尺寸,视野',
+  keyInfoList.value = buildKeyInfoList(extractedInfo)
+
+  await applyKeywordAnalysisToKeyInfo(agreement)
+  applyPrecisionEstimationToKeyInfo(agreement, extractedInfo)
+}
+
+const sectionKeyById: Record<number, string> = {
+  1: 'productSize',
+  2: 'ppm',
+  3: 'inspectionRequirements',
+  4: 'inspectionObjectSpecs',
+  5: 'inspectionPrecision',
+  6: 'stationRequirements',
+  7: 'brandRequirements',
+  8: 'industrialComputerRequirements',
+  9: 'softwareRequirements'
+}
+
+const applyKeywordAnalysisToKeyInfo = async (agreement: any) => {
+  if (!agreement?.id) return
+
+  try {
+    const response = await keywordAPI.analyzeAgreement(Number(agreement.id))
+    const hits = Array.isArray(response.data?.hits) ? response.data.hits : []
+
+    keyInfoList.value = keyInfoList.value.map((item: any) => {
+      const keySection = sectionKeyById[Number(item.id)] || ''
+      const matched = hits.filter((hit: any) => String(hit.key_section || '') === keySection)
+      if (!matched.length) {
+        return item
+      }
+
+      const keywords = Array.from(new Set(matched.map((hit: any) => String(hit.keyword || '').trim()).filter(Boolean)))
+      const summaries = matched
+        .slice(0, 3)
+        .map((hit: any) => `【${hit.keyword}】${hit.summary || hit.excerpt || ''}`)
+        .filter((text: string) => Boolean(text.trim()))
+      const hasTableHint = matched.some((hit: any) => Boolean(hit.has_table_hint))
+      const hasImageHint = matched.some((hit: any) => Boolean(hit.has_image_hint))
+      const hasTextHit = matched.some((hit: any) => !hit?.is_fallback)
+      const hintText = [
+        hasTableHint ? '表格线索: 已检测到与关键词相关的表格/列项内容。' : '',
+        hasImageHint ? '附图线索: 已检测到“图/图片/示意”等描述，请结合原文查看。' : ''
+      ].filter(Boolean).join('\n')
+
+      const existingRelatedText = stripEmptyPlaceholder(item?.relatedContent?.text || '')
+      const mergedRelatedText = [existingRelatedText, ...summaries, hintText].filter(Boolean).join('\n') || '无相关信息'
+
+      return {
+        ...item,
+        protocolReading: summaries.length ? summaries.join('；') : item.protocolReading,
+        protocolReadingSource: hasTextHit ? 'text-hit' : 'fallback',
+        protocolReadingSourceLabel: hasTextHit ? '文本命中' : '规则兜底',
+        indexKeywords: keywords.join(','),
         relatedContent: {
-          text: extractedInfo.keySections?.productSize || '无相关信息',
-          images: [
-            'https://picsum.photos/200/150?random=1',
-            'https://picsum.photos/200/150?random=2'
-          ],
-          screenshots: [
-            'https://picsum.photos/300/200?random=3'
-          ]
-        }
-      },
-      {
-        id: 2, 
-        name: 'PPM', 
-        description: 'PPM、速度、拍照频率', 
-        protocolReading: extractedInfo.keySections?.ppm || '无相关信息', 
-        indexKeywords: 'PPM,速度,拍照频率',
-        relatedContent: {
-          text: extractedInfo.keySections?.ppm || '无相关信息',
-          screenshots: [
-            'https://picsum.photos/300/200?random=4'
-          ]
-        }
-      },
-      {
-        id: 3, 
-        name: '检测要求', 
-        description: '检测内容、相机黑白、测量内容、外观检测要求、过杀漏检等', 
-        protocolReading: extractedInfo.keySections?.inspectionRequirements || '无相关信息', 
-        indexKeywords: '检测要求,外观检测',
-        relatedContent: {
-          text: extractedInfo.keySections?.inspectionRequirements || '无相关信息',
-          images: [
-            'https://picsum.photos/200/150?random=5'
-          ],
-          screenshots: [
-            'https://picsum.photos/300/200?random=6'
-          ]
-        }
-      },
-      {
-        id: 4, 
-        name: '检测对象规格', 
-        description: '极耳尺寸、相机尺寸、胶纸间距、胶纸颜色等', 
-        protocolReading: extractedInfo.keySections?.inspectionObjectSpecs || '无相关信息', 
-        indexKeywords: '极耳尺寸,胶纸间距',
-        relatedContent: {
-          text: extractedInfo.keySections?.inspectionObjectSpecs || '无相关信息',
-          screenshots: [
-            'https://picsum.photos/300/200?random=7'
-          ]
-        }
-      },
-      {
-        id: 5, 
-        name: '检测精度', 
-        description: '检测精度、像素精度、相机分辨率、一个工位几个相机', 
-        protocolReading: extractedInfo.keySections?.inspectionPrecision || '无相关信息', 
-        indexKeywords: '检测精度,相机分辨率',
-        relatedContent: {
-          text: extractedInfo.keySections?.inspectionPrecision || '无相关信息',
-          images: [
-            'https://picsum.photos/200/150?random=8'
-          ]
-        }
-      },
-      {
-        id: 6, 
-        name: '工位要求', 
-        description: '有哪些工位，单工位还是双工位，一个工位几个相机', 
-        protocolReading: extractedInfo.keySections?.stationRequirements || '无相关信息', 
-        indexKeywords: '工位,相机数量',
-        relatedContent: {
-          text: extractedInfo.keySections?.stationRequirements || '无相关信息',
-          images: [
-            'https://picsum.photos/200/150?random=9'
-          ],
-          screenshots: [
-            'https://picsum.photos/300/200?random=10'
-          ]
-        }
-      },
-      {
-        id: 7, 
-        name: '品牌要求', 
-        description: '相机、镜头、光源、工控机等品牌要求', 
-        protocolReading: extractedInfo.keySections?.brandRequirements || '无相关信息', 
-        indexKeywords: '相机品牌,镜头品牌,光源品牌',
-        relatedContent: {
-          text: extractedInfo.keySections?.brandRequirements || '无相关信息',
-          screenshots: [
-            'https://picsum.photos/300/200?random=11'
-          ]
-        }
-      },
-      {
-        id: 8, 
-        name: '工控机要求', 
-        description: '性能要求、配置要求、存储要求、端口预留要求，图片存储天数', 
-        protocolReading: extractedInfo.keySections?.industrialComputerRequirements || '无相关信息', 
-        indexKeywords: '工控机,配置,存储',
-        relatedContent: {
-          text: extractedInfo.keySections?.industrialComputerRequirements || '无相关信息',
-          screenshots: [
-            'https://picsum.photos/300/200?random=12'
-          ]
-        }
-      },
-      {
-        id: 9, 
-        name: '软件要求', 
-        description: '界面、权限、功能等', 
-        protocolReading: extractedInfo.keySections?.softwareRequirements || '无相关信息', 
-        indexKeywords: '软件,界面,功能',
-        relatedContent: {
-          text: extractedInfo.keySections?.softwareRequirements || '无相关信息',
-          images: [
-            'https://picsum.photos/200/150?random=13'
-          ],
-          screenshots: [
-            'https://picsum.photos/300/200?random=14'
-          ]
+          text: mergedRelatedText,
+          images: [],
+          screenshots: []
         }
       }
-    ]
-  } else {
-    // 模拟关键信息数据，包含关联内容
-    keyInfoList.value = [
-      {
-        id: 1, 
-        name: '产品尺寸', 
-        description: '极片长宽范围、电芯或电池产品长宽范围、视野大小、料长', 
-        protocolReading: '极片尺寸：100mm×200mm，视野：200mm×200mm', 
-        indexKeywords: '产品尺寸,视野',
-        relatedContent: {
-          text: '协议第3.2节详细说明了产品尺寸要求，包括极片、电芯的长宽范围和允许误差。',
-          images: [
-            'https://picsum.photos/200/150?random=1',
-            'https://picsum.photos/200/150?random=2'
-          ],
-          screenshots: [
-            'https://picsum.photos/300/200?random=3'
-          ]
-        }
-      },
-      {
-        id: 2, 
-        name: 'PPM', 
-        description: 'PPM、速度、拍照频率', 
-        protocolReading: 'PPM要求：1200，拍照频率：10次/秒', 
-        indexKeywords: 'PPM,速度,拍照频率',
-        relatedContent: {
-          text: '协议第4.1节规定了生产效率要求，PPM不得低于1200，拍照频率需达到10次/秒。',
-          screenshots: [
-            'https://picsum.photos/300/200?random=4'
-          ]
-        }
-      },
-      {
-        id: 3, 
-        name: '检测要求', 
-        description: '检测内容、相机黑白、测量内容、外观检测要求、过杀漏检等', 
-        protocolReading: '检测内容：外观缺陷、尺寸测量，相机类型：工业黑白相机', 
-        indexKeywords: '检测要求,外观检测',
-        relatedContent: {
-          text: '协议第5.2节详细说明了检测要求，包括外观缺陷检测、尺寸测量等内容，要求使用工业黑白相机。',
-          images: [
-            'https://picsum.photos/200/150?random=5'
-          ],
-          screenshots: [
-            'https://picsum.photos/300/200?random=6'
-          ]
-        }
-      },
-      {
-        id: 4, 
-        name: '检测对象规格', 
-        description: '极耳尺寸、相机尺寸、胶纸间距、胶纸颜色等', 
-        protocolReading: '极耳尺寸：5mm×20mm，胶纸间距：10mm', 
-        indexKeywords: '极耳尺寸,胶纸间距',
-        relatedContent: {
-          text: '协议第6.1节规定了检测对象的具体规格，包括极耳尺寸、胶纸间距等参数。',
-          screenshots: [
-            'https://picsum.photos/300/200?random=7'
-          ]
-        }
-      },
-      {
-        id: 5, 
-        name: '检测精度', 
-        description: '检测精度、像素精度、相机分辨率、一个工位几个相机', 
-        protocolReading: '检测精度：±0.05mm，相机分辨率：2000万像素', 
-        indexKeywords: '检测精度,相机分辨率',
-        relatedContent: {
-          text: '协议第7.3节规定了检测精度要求，尺寸检测精度需达到±0.05mm，相机分辨率不低于2000万像素。',
-          images: [
-            'https://picsum.photos/200/150?random=8'
-          ]
-        }
-      },
-      {
-        id: 6, 
-        name: '工位要求', 
-        description: '有哪些工位，单工位还是双工位，一个工位几个相机', 
-        protocolReading: '工位：外观检测工位、尺寸检测工位，每个工位2个相机', 
-        indexKeywords: '工位,相机数量',
-        relatedContent: {
-          text: '协议第8.2节规定了工位配置要求，包括外观检测工位和尺寸检测工位，每个工位配置2个相机。',
-          images: [
-            'https://picsum.photos/200/150?random=9'
-          ],
-          screenshots: [
-            'https://picsum.photos/300/200?random=10'
-          ]
-        }
-      },
-      {
-        id: 7, 
-        name: '品牌要求', 
-        description: '相机、镜头、光源、工控机等品牌要求', 
-        protocolReading: '相机品牌：Keyence，镜头品牌：Computar，光源品牌：CCS', 
-        indexKeywords: '相机品牌,镜头品牌,光源品牌',
-        relatedContent: {
-          text: '协议第9.1节规定了设备品牌要求，相机推荐使用Keyence，镜头推荐使用Computar，光源推荐使用CCS。',
-          screenshots: [
-            'https://picsum.photos/300/200?random=11'
-          ]
-        }
-      },
-      {
-        id: 8, 
-        name: '工控机要求', 
-        description: '性能要求、配置要求、存储要求、端口预留要求，图片存储天数', 
-        protocolReading: 'CPU：i7，内存：16GB，存储：512GB SSD，图片存储：30天', 
-        indexKeywords: '工控机,配置,存储',
-        relatedContent: {
-          text: '协议第10.2节规定了工控机配置要求，包括CPU、内存、存储等参数，以及图片存储时间要求。',
-          screenshots: [
-            'https://picsum.photos/300/200?random=12'
-          ]
-        }
-      },
-      {
-        id: 9, 
-        name: '软件要求', 
-        description: '界面、权限、功能等', 
-        protocolReading: '界面要求：中文界面，功能：实时监控、数据导出、报警功能', 
-        indexKeywords: '软件,界面,功能',
-        relatedContent: {
-          text: '协议第11.3节规定了软件要求，界面需为中文，功能包括实时监控、数据导出、报警功能等。',
-          images: [
-            'https://picsum.photos/200/150?random=13'
-          ],
-          screenshots: [
-            'https://picsum.photos/300/200?random=14'
-          ]
-        }
-      }
-    ]
+    })
+  } catch (error) {
+    console.error('关键词分析失败:', error)
+  }
+}
+
+const applyPrecisionEstimationToKeyInfo = (agreement: any, extractedInfo: any) => {
+  const precisionItem = keyInfoList.value.find((item: any) => Number(item.id) === 5)
+  if (!precisionItem) return
+
+  const hasExplicitPrecision = String(precisionItem.protocolReading || '').trim() && String(precisionItem.protocolReading).trim() !== '无相关信息'
+  if (hasExplicitPrecision) return
+
+  const sourceText = [
+    String(agreement?.full_text || ''),
+    String(extractedInfo?.fullText || ''),
+    String(extractedInfo?.keySections?.productSize || '')
+  ].join('\n')
+
+  const estimate = estimatePrecisionByVision(sourceText)
+  if (!estimate) return
+
+  precisionItem.protocolReading = `协议未明确精度，系统推算约 ${estimate.estimatedUm.toFixed(1)}μm（${estimate.confidence}置信度）`
+  precisionItem.protocolReadingSource = 'fallback'
+  precisionItem.protocolReadingSourceLabel = '规则兜底'
+  precisionItem.relatedContent = {
+    ...(precisionItem.relatedContent || {}),
+    text: [
+      precisionItem.relatedContent?.text || '',
+      `推算依据：FOV≈${estimate.fovMm.toFixed(1)}mm，分辨率≈${estimate.resolutionPx}px，K=${estimate.factor.toFixed(2)}`,
+      `计算：mm/px=FOV/像素；估算精度≈0.15×mm/px×K`
+    ].filter(Boolean).join('\n')
+  }
+}
+
+const estimatePrecisionByVision = (text: string) => {
+  const input = String(text || '')
+  if (!input.trim()) return null
+
+  const fovMatch = input.match(/视野[^\d]{0,8}(\d+(?:\.\d+)?)\s*(mm|毫米)(?:\s*[x×*]\s*(\d+(?:\.\d+)?)\s*(mm|毫米))?/i)
+  const resMatch = input.match(/(\d{3,5})\s*[x×*]\s*(\d{3,5})/)
+
+  if (!fovMatch || !resMatch) return null
+
+  const fovMm = Number(fovMatch[1] || 0)
+  const resolutionPx = Number(resMatch[1] || 0)
+  if (!fovMm || !resolutionPx) return null
+
+  let factor = 1.8
+  if (/高速|振动|反光|镜面/.test(input)) factor = 2.2
+  if (/稳定|静态|实验室|标定/.test(input)) factor = 1.4
+
+  const mmPerPx = fovMm / resolutionPx
+  const estimatedUm = mmPerPx * 0.15 * factor * 1000
+  const confidence = estimatedUm < 10 ? '中高' : '中'
+
+  return {
+    fovMm,
+    resolutionPx,
+    factor,
+    estimatedUm,
+    confidence
   }
 }
 
@@ -1757,5 +2031,20 @@ const uploadVisionFiles = async () => {
   border-radius: 6px;
   padding: 20px;
   text-align: center;
+}
+
+.protocol-reading-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.protocol-reading-cell > div:first-child {
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.protocol-reading-cell .el-tag {
+  width: fit-content;
 }
 </style>

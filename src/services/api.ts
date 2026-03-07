@@ -5,6 +5,37 @@ const api = axios.create({
   timeout: 10000
 })
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const message = String(error?.message || '').toLowerCase()
+    const status = Number(error?.response?.status || 0)
+    const responseBody = String(error?.response?.data || '').toLowerCase()
+    const isBackendUnavailable =
+      !error?.response ||
+      message.includes('network error') ||
+      message.includes('econnrefused') ||
+      (status === 500 && (
+        responseBody.includes('proxy') ||
+        responseBody.includes('econnrefused') ||
+        message.includes('econnrefused')
+      ))
+
+    if (isBackendUnavailable) {
+      const normalizedError = new Error('后端服务不可用（请确认 3006 端口服务已启动）')
+      ;(normalizedError as any).original = error
+      return Promise.reject(normalizedError)
+    }
+
+    const serverMessage = error?.response?.data?.message
+    if (serverMessage) {
+      return Promise.reject(new Error(String(serverMessage)))
+    }
+
+    return Promise.reject(error)
+  }
+)
+
 // 机型库相关API
 export const machineLibraryAPI = {
   getList: () => api.get('/machine-libraries'),
@@ -52,6 +83,21 @@ export const evaluationAPI = {
 export const reportAPI = {
   generate: (machineTypeId: number, format: string) => api.post('/reports/generate', { machineTypeId, format }),
   getList: () => api.get('/reports/list')
+}
+
+export const keywordAPI = {
+  getList: () => api.get('/keywords'),
+  create: (payload: any) => api.post('/keywords', payload),
+  update: (id: number, payload: any) => api.put(`/keywords/${id}`, payload),
+  delete: (id: number) => api.delete(`/keywords/${id}`),
+  seedDefaults: () => api.post('/keywords/seed-defaults'),
+  importFile: (formData: FormData) => api.post('/keywords/import', formData),
+  getBindings: () => api.get('/keywords/bindings/list'),
+  createBinding: (payload: any) => api.post('/keywords/bindings', payload),
+  deleteBinding: (id: number) => api.delete(`/keywords/bindings/${id}`),
+  analyzeAgreement: (agreementId: number) => api.get(`/keywords/analyze/${agreementId}`),
+  exportLibrary: () => api.get('/keywords/export-library', { responseType: 'blob' }),
+  exportTemplate: () => api.get('/keywords/export-template', { responseType: 'blob' })
 }
 
 export default api
