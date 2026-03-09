@@ -4,11 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:server\"",
+    "dev:frontend": "vite",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
     "dev:server": "tsx backend/server.ts",
-    "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
+    "dev:all": "concurrently \"npm run dev:frontend\" \"npm run dev:server\"",
     "dev:start": "powershell -ExecutionPolicy Bypass -File ./scripts/start.ps1",
     "dev:stop": "powershell -ExecutionPolicy Bypass -File ./scripts/stop.ps1",
     "dev:status": "powershell -ExecutionPolicy Bypass -File ./scripts/status.ps1"

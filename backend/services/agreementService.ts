@@ -1,10 +1,10 @@
 import sqlite3 from 'sqlite3'
-import { open } from 'sqlite'
+import { open, Database } from 'sqlite'
 import documentParserService from './documentParserService.js'
 import path from 'path'
 
 class AgreementService {
-  private db: sqlite3.Database | null = null
+  private db: Database | null = null
 
   constructor() {
     this.initDatabase()
@@ -180,44 +180,111 @@ class AgreementService {
       industrialComputerRequirements: '',
       softwareRequirements: ''
     }
-    
-    // 提取产品尺寸
-    const productSizeMatch = text.match(/(产品尺寸|尺寸要求|规格)[\s\S]{0,500}(?=(\n\s*\n|$))/i)
-    if (productSizeMatch) sections.productSize = productSizeMatch[0]
-    
-    // 提取PPM
-    const ppmMatch = text.match(/(PPM|节拍|产能|速度)[\s\S]{0,300}(?=(\n\s*\n|$))/i)
-    if (ppmMatch) sections.ppm = ppmMatch[0]
-    
-    // 提取检测要求
-    const inspectionMatch = text.match(/(检测要求|检测内容|外观检测)[\s\S]{0,500}(?=(\n\s*\n|$))/i)
-    if (inspectionMatch) sections.inspectionRequirements = inspectionMatch[0]
-    
-    // 提取检测对象规格
-    const specsMatch = text.match(/(检测对象|规格要求|极耳尺寸|胶纸间距)[\s\S]{0,500}(?=(\n\s*\n|$))/i)
-    if (specsMatch) sections.inspectionObjectSpecs = specsMatch[0]
-    
-    // 提取检测精度
-    const precisionMatch = text.match(/(检测精度|精度要求|相机分辨率)[\s\S]{0,300}(?=(\n\s*\n|$))/i)
-    if (precisionMatch) sections.inspectionPrecision = precisionMatch[0]
-    
-    // 提取工位要求
-    const stationMatch = text.match(/(工位要求|工位配置|单工位|双工位)[\s\S]{0,300}(?=(\n\s*\n|$))/i)
-    if (stationMatch) sections.stationRequirements = stationMatch[0]
-    
-    // 提取品牌要求
-    const brandMatch = text.match(/(品牌要求|相机品牌|镜头品牌|光源品牌)[\s\S]{0,300}(?=(\n\s*\n|$))/i)
-    if (brandMatch) sections.brandRequirements = brandMatch[0]
-    
-    // 提取工控机要求
-    const computerMatch = text.match(/(工控机|配置要求|存储要求|端口预留)[\s\S]{0,300}(?=(\n\s*\n|$))/i)
-    if (computerMatch) sections.industrialComputerRequirements = computerMatch[0]
-    
-    // 提取软件要求
-    const softwareMatch = text.match(/(软件要求|界面要求|功能要求|权限要求)[\s\S]{0,300}(?=(\n\s*\n|$))/i)
-    if (softwareMatch) sections.softwareRequirements = softwareMatch[0]
+
+    const normalizedText = String(text || '')
+      .replace(/\r/g, '\n')
+      .replace(/\t/g, ' ')
+      .replace(/[ \u00A0]+/g, ' ')
+      .trim()
+
+    if (!normalizedText) {
+      return sections
+    }
+
+    const lines = normalizedText
+      .split('\n')
+      .flatMap((line) => line.split(/[；;。]/g))
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+
+    sections.productSize = this.extractSnippetByKeywords(lines, normalizedText, [
+      '产品尺寸', '尺寸要求', '极片长宽', '电芯', '电池产品长宽', '视野', '料长'
+    ])
+
+    sections.ppm = this.extractSnippetByKeywords(lines, normalizedText, [
+      'ppm', '节拍', '产能', '速度', '拍照频率'
+    ])
+
+    sections.inspectionRequirements = this.extractSnippetByKeywords(lines, normalizedText, [
+      '检测要求', '检测内容', '外观检测', '过杀', '漏检', '黑白'
+    ])
+
+    sections.inspectionObjectSpecs = this.extractSnippetByKeywords(lines, normalizedText, [
+      '检测对象', '对象规格', '极耳尺寸', '胶纸间距', '胶纸颜色', '规格'
+    ])
+
+    sections.inspectionPrecision = this.extractSnippetByKeywords(lines, normalizedText, [
+      '检测精度', '像素精度', '精度要求', '相机分辨率', '分辨率', 'um', 'μm'
+    ])
+
+    sections.stationRequirements = this.extractSnippetByKeywords(lines, normalizedText, [
+      '工位要求', '工位配置', '单工位', '双工位', '一个工位', '工位', '相机数量'
+    ])
+
+    sections.brandRequirements = this.extractSnippetByKeywords(lines, normalizedText, [
+      '品牌要求', '相机品牌', '镜头品牌', '光源品牌', '工控机品牌'
+    ])
+
+    sections.industrialComputerRequirements = this.extractSnippetByKeywords(lines, normalizedText, [
+      '工控机', 'ipc', '配置要求', '存储要求', '端口预留', '图片存储', '存储天数'
+    ])
+
+    sections.softwareRequirements = this.extractSnippetByKeywords(lines, normalizedText, [
+      '软件要求', '界面', '权限', '功能', '报警', '数据导出'
+    ])
     
     return sections
+  }
+
+  private extractSnippetByKeywords(
+    lines: string[],
+    fullText: string,
+    keywords: string[],
+    contextLines: number = 2,
+    maxLength: number = 260
+  ) {
+    const normalizedKeywords = keywords
+      .map((keyword) => String(keyword || '').trim().toLowerCase())
+      .filter(Boolean)
+
+    if (!normalizedKeywords.length) {
+      return ''
+    }
+
+    const snippets: string[] = []
+
+    for (let i = 0; i < lines.length; i++) {
+      const currentLine = String(lines[i] || '')
+      const lowerLine = currentLine.toLowerCase()
+      const hit = normalizedKeywords.some((keyword) => lowerLine.includes(keyword))
+      if (!hit) {
+        continue
+      }
+
+      const start = Math.max(0, i - 1)
+      const end = Math.min(lines.length - 1, i + contextLines)
+      const snippet = lines.slice(start, end + 1).join('；').trim()
+      if (snippet) {
+        snippets.push(snippet.slice(0, maxLength))
+      }
+    }
+
+    if (!snippets.length) {
+      const lowerText = fullText.toLowerCase()
+      for (const keyword of normalizedKeywords) {
+        const index = lowerText.indexOf(keyword)
+        if (index < 0) continue
+        const start = Math.max(0, index - 18)
+        const end = Math.min(fullText.length, index + maxLength)
+        const snippet = fullText.slice(start, end).trim()
+        if (snippet) {
+          snippets.push(snippet)
+          break
+        }
+      }
+    }
+
+    return Array.from(new Set(snippets)).join('\n')
   }
 
   async updateAgreement(id: number, name: string, machineType: string, stations: string) {

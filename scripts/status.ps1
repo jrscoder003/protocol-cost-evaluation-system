@@ -18,27 +18,36 @@ function Show-ServiceStatus {
     [string]$ErrLog
   )
 
-  if (-not (Test-Path $PidFile)) {
-    Write-Host "${Name}: stopped (no PID file)"
-    return
+  $pidValue = $null
+  if (Test-Path $PidFile) {
+    $pidValue = (Get-Content $PidFile -ErrorAction SilentlyContinue | Select-Object -First 1)
   }
 
-  $pidValue = Get-Content $PidFile -ErrorAction SilentlyContinue
-  if (-not $pidValue) {
-    Write-Host "${Name}: stopped (empty PID file)"
-    return
-  }
+  $listeningConn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+    Select-Object -First 1
 
-  $proc = Get-Process -Id ([int]$pidValue) -ErrorAction SilentlyContinue
-  $listening = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
-    Where-Object { $_.OwningProcess -eq ([int]$pidValue) }
-
-  if ($proc -and $listening) {
-    Write-Host "${Name}: running, PID=$pidValue, URL=http://localhost:$Port"
-  } elseif ($proc) {
-    Write-Host "${Name}: process exists but port $Port not listening, PID=$pidValue"
+  if ($listeningConn) {
+    $ownerPid = [int]$listeningConn.OwningProcess
+    if ($pidValue -and ([int]$pidValue) -ne $ownerPid) {
+      Write-Host "${Name}: running, PID=$ownerPid, URL=http://localhost:$Port (pid file corrected from $pidValue)"
+      $ownerPid | Set-Content -Path $PidFile -Encoding utf8
+    } else {
+      Write-Host "${Name}: running, PID=$ownerPid, URL=http://localhost:$Port"
+      if (-not $pidValue) {
+        $ownerPid | Set-Content -Path $PidFile -Encoding utf8
+      }
+    }
   } else {
-    Write-Host "${Name}: stopped (PID=$pidValue not found)"
+    if ($pidValue) {
+      $proc = Get-Process -Id ([int]$pidValue) -ErrorAction SilentlyContinue
+      if ($proc) {
+        Write-Host "${Name}: process exists but port $Port not listening, PID=$pidValue"
+      } else {
+        Write-Host "${Name}: stopped (PID=$pidValue not found)"
+      }
+    } else {
+      Write-Host "${Name}: stopped (no PID file and port not listening)"
+    }
   }
 
   if (Test-Path $ErrLog) {

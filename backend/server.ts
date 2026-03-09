@@ -19,6 +19,7 @@ import costTableRouter from './routes/costTable.js'
 import partRouter from './routes/part.js'
 import evaluationRouter from './routes/evaluation.js'
 import reportRouter from './routes/report.js'
+import keywordRouter from './routes/keyword.js'
 
 const app = express()
 const port = 3006
@@ -27,12 +28,6 @@ const port = 3006
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 app.use(logger)
-
-// 设置响应编码
-app.use((req, res, next) => {
-  res.setHeader('Content-Type', 'application/json; charset=utf-8')
-  next()
-})
 
 // 静态文件服务
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
@@ -115,6 +110,7 @@ app.use('/api/cost-tables', costTableRouter)
 app.use('/api/parts', partRouter)
 app.use('/api/evaluation', evaluationRouter)
 app.use('/api/reports', reportRouter)
+app.use('/api/keywords', keywordRouter)
 
 // 健康检查与根路径提示，便于快速判断后端是否在线
 app.get('/api/health', (req, res) => {

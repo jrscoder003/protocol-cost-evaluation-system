@@ -15,6 +15,12 @@ if (-not (Test-Path $RuntimeDir)) {
   New-Item -Path $RuntimeDir -ItemType Directory | Out-Null
 }
 
+foreach ($logFile in @($FrontOutLog, $FrontErrLog, $BackOutLog, $BackErrLog)) {
+  if (Test-Path $logFile) {
+    Clear-Content -Path $logFile -ErrorAction SilentlyContinue
+  }
+}
+
 function Stop-PortOwner {
   param([int]$Port)
   $connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
@@ -31,14 +37,19 @@ function Test-PortAlive {
   return [bool]$listening
 }
 
+function Get-PortOwnerPid {
+  param([int]$Port)
+  $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+    Select-Object -First 1
+  if ($conn) { return [int]$conn.OwningProcess }
+  return 0
+}
+
 Stop-PortOwner -Port $FrontPort
 Stop-PortOwner -Port $BackPort
 
-$frontProc = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', 'npm run dev -- --port 3004 --strictPort' -WorkingDirectory $Root -PassThru -WindowStyle Hidden -RedirectStandardOutput $FrontOutLog -RedirectStandardError $FrontErrLog
+$frontProc = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', 'npm run dev:frontend -- --port 3004 --strictPort' -WorkingDirectory $Root -PassThru -WindowStyle Hidden -RedirectStandardOutput $FrontOutLog -RedirectStandardError $FrontErrLog
 $backProc = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', 'npm run dev:server' -WorkingDirectory $Root -PassThru -WindowStyle Hidden -RedirectStandardOutput $BackOutLog -RedirectStandardError $BackErrLog
-
-$frontProc.Id | Set-Content -Path $FrontPidFile -Encoding utf8
-$backProc.Id | Set-Content -Path $BackPidFile -Encoding utf8
 
 $frontReady = $false
 $backReady = $false
@@ -55,4 +66,10 @@ if (-not $frontReady -or -not $backReady) {
   exit 1
 }
 
-Write-Host "Services started. Front=http://localhost:$FrontPort (PID=$($frontProc.Id)); Back=http://localhost:$BackPort (PID=$($backProc.Id))"
+$frontOwnerPid = Get-PortOwnerPid -Port $FrontPort
+$backOwnerPid = Get-PortOwnerPid -Port $BackPort
+
+if ($frontOwnerPid -gt 0) { $frontOwnerPid | Set-Content -Path $FrontPidFile -Encoding utf8 }
+if ($backOwnerPid -gt 0) { $backOwnerPid | Set-Content -Path $BackPidFile -Encoding utf8 }
+
+Write-Host "Services started. Front=http://localhost:$FrontPort (PID=$frontOwnerPid); Back=http://localhost:$BackPort (PID=$backOwnerPid)"

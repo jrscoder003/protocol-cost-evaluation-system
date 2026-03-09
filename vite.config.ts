@@ -10,6 +10,10 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3006',
         changeOrigin: true
+      },
+      '/library-docs': {
+        target: 'http://localhost:3006',
+        changeOrigin: true
       }
     }
   }
